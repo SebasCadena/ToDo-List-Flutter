@@ -13,16 +13,36 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   late Future<List<Task>> _futureTasks;
 
-  bool _isChecked = false;
+  //bool _isChecked = false;
 
   @override
   void initState() {
     super.initState();
-    _futureTasks = DBService.getTasks();
+    loadTasks();
   }
 
-  goToAdd(){
-    context.push('/createTask');
+  loadTasks() {
+    setState(() {
+      _futureTasks = DBService.getTasks();
+    });
+  }
+
+  goToAdd() async {
+    await context.push('/createTask');
+    loadTasks();
+  }
+
+  Future<void> _toggleTaskCompletion(Task task) async {
+    final updatedTask = Task(
+      id: task.id,
+      title: task.title,
+      completed: task.completed == 1 ? 0 : 1, // Toggle entre 0 y 1
+      updated_at: DateTime.now().toIso8601String(),
+      deleted: task.deleted,
+    );
+
+    await DBService.updateTask(updatedTask);
+    loadTasks(); // Recarga la lista actualizada
   }
 
   @override
@@ -62,24 +82,35 @@ class _HomeState extends State<Home> {
                         itemCount: tasks.length,
                         itemBuilder: (_, index) {
                           final task = tasks[index];
-                          return Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Row(
-                                children: [
-                                  Checkbox(
-                                    value: _isChecked,
-                                    onChanged: (bool? newValue) {
-                                      setState(() {
-                                        _isChecked = newValue!;
-                                      });
-                                    },
-                                  ),
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 20.0),
-                                    child: Text("${task.title}"),
-                                  ),
-                                ],
+                          return InkWell(
+                            onTap: () async {
+                              await context.push('/updateTask/${task.id}');
+                              loadTasks();
+                            },
+                            child: Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: Row(
+                                  children: [
+                                    Checkbox(
+                                      value: task.completed == 1,
+                                      onChanged: (bool? newValue) {
+                                        _toggleTaskCompletion(task);
+                                      },
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 20.0),
+                                      child: Text(
+                                        task.title,
+                                        style: TextStyle(
+                                          decoration: task.completed == 1
+                                              ? TextDecoration.lineThrough
+                                              : null,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           );
