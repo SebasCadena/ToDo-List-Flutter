@@ -45,6 +45,25 @@ class _HomeState extends State<Home> {
     loadTasks(); // Recarga la lista actualizada
   }
 
+  Future<void> _toggleTaskDeleted(Task task) async {
+    final updatedTask = Task(
+      id: task.id,
+      title: task.title,
+      completed: task.completed,
+      updated_at: DateTime.now().toIso8601String(),
+      deleted: 1,
+    );
+
+    await DBService.updateTask(updatedTask);
+    loadTasks(); // Recarga la lista actualizada
+    
+  }
+
+  deletedTasks() async {
+    await context.push('/deletedTasks');
+    loadTasks();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -52,6 +71,12 @@ class _HomeState extends State<Home> {
         backgroundColor: Theme.of(context).colorScheme.primary,
         title: const Text('To Do List'),
         actions: [IconButton(onPressed: goToAdd, icon: const Icon(Icons.add))],
+        leading: IconButton(
+          icon: const Icon(Icons.delete),
+          onPressed: () {
+            deletedTasks();
+          },
+        ),
       ),
       body: Center(
         child: Padding(
@@ -91,6 +116,7 @@ class _HomeState extends State<Home> {
                               child: Padding(
                                 padding: const EdgeInsets.all(12.0),
                                 child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Checkbox(
                                       value: task.completed == 1,
@@ -98,8 +124,8 @@ class _HomeState extends State<Home> {
                                         _toggleTaskCompletion(task);
                                       },
                                     ),
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 20.0),
+                                    SizedBox(width: 20),
+                                    Expanded(
                                       child: Text(
                                         task.title,
                                         style: TextStyle(
@@ -109,6 +135,9 @@ class _HomeState extends State<Home> {
                                         ),
                                       ),
                                     ),
+                                    IconButton(onPressed: () {
+                                      _toggleTaskDeleted(task);
+                                    }, icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.primary, size: 25,))
                                   ],
                                 ),
                               ),

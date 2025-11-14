@@ -56,8 +56,38 @@ class DBService {
     final db = await database;
     // db.query se usa para obtener registros de la tabla
     // Se puede usar un filtro, pero aquí se obtienen todos los registros
-    final res = await db.query('tasks');
+    final res = await db.query('tasks', where: 'deleted = ?', whereArgs: [0]);
     return res.map((e) => Task.fromMap(e)).toList();
+  }
+
+  static Future<List<Task>> getTasksDeleted() async {
+    final db = await database;
+    // db.query se usa para obtener registros de la tabla
+    // Se puede usar un filtro, pero aquí se obtienen todos los registros
+    final res = await db.query('tasks', where: 'deleted = ?', whereArgs: [1]);
+    return res.map((e) => Task.fromMap(e)).toList();
+  }
+
+  // Solo pendientes
+  static Future<List<Task>> getTasksPending() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'tasks',
+      where: 'deleted = ? AND completed = ?',
+      whereArgs: [0, 0],
+    );
+    return List.generate(maps.length, (i) => Task.fromMap(maps[i]));
+  }
+
+  // Solo completadas
+  static Future<List<Task>> getTasksCompleted() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'tasks',
+      where: 'deleted = ? AND completed = ?',
+      whereArgs: [0, 1],
+    );
+    return List.generate(maps.length, (i) => Task.fromMap(maps[i]));
   }
 
   /// Actualiza una tarea existente según su ID
