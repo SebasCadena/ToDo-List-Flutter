@@ -12,6 +12,7 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   late Future<List<Task>> _futureTasks;
+  TaskFilter _currentFilter = TaskFilter.all;
 
   //bool _isChecked = false;
 
@@ -23,7 +24,24 @@ class _HomeState extends State<Home> {
 
   loadTasks() {
     setState(() {
-      _futureTasks = DBService.getTasks();
+      switch (_currentFilter) {
+        case TaskFilter.all:
+          _futureTasks = DBService.getTasks();
+          break;
+        case TaskFilter.pending:
+          _futureTasks = DBService.getTasksPending();
+          break;
+        case TaskFilter.completed:
+          _futureTasks = DBService.getTasksCompleted();
+          break;
+      }
+    });
+  }
+
+  void _changeFilter(TaskFilter filter) {
+    setState(() {
+      _currentFilter = filter;
+      loadTasks();
     });
   }
 
@@ -56,7 +74,6 @@ class _HomeState extends State<Home> {
 
     await DBService.updateTask(updatedTask);
     loadTasks(); // Recarga la lista actualizada
-    
   }
 
   deletedTasks() async {
@@ -85,6 +102,30 @@ class _HomeState extends State<Home> {
             children: [
               const SizedBox(height: 10),
               const Text("Tus Tareas", style: TextStyle(fontSize: 20)),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                    FilterChip(
+                    label: const Text('Pendientes'),
+                    selected: _currentFilter == TaskFilter.pending,
+                    onSelected: (selected) => _changeFilter(TaskFilter.pending),
+                  ),
+                  
+                  FilterChip(
+                    label: const Text('Completadas'),
+                    selected: _currentFilter == TaskFilter.completed,
+                    onSelected: (selected) =>
+                        _changeFilter(TaskFilter.completed),
+                  ),
+
+                  FilterChip(
+                    label: const Text('Todas'),
+                    selected: _currentFilter == TaskFilter.all,
+                    onSelected: (selected) => _changeFilter(TaskFilter.all),
+                  ),
+                ],
+              ),
               const SizedBox(height: 10),
               Expanded(
                 child: FutureBuilder<List<Task>>(
@@ -116,7 +157,8 @@ class _HomeState extends State<Home> {
                               child: Padding(
                                 padding: const EdgeInsets.all(12.0),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Checkbox(
                                       value: task.completed == 1,
@@ -135,9 +177,18 @@ class _HomeState extends State<Home> {
                                         ),
                                       ),
                                     ),
-                                    IconButton(onPressed: () {
-                                      _toggleTaskDeleted(task);
-                                    }, icon: Icon(Icons.delete, color: Theme.of(context).colorScheme.primary, size: 25,))
+                                    IconButton(
+                                      onPressed: () {
+                                        _toggleTaskDeleted(task);
+                                      },
+                                      icon: Icon(
+                                        Icons.delete,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                        size: 25,
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -156,3 +207,5 @@ class _HomeState extends State<Home> {
     );
   }
 }
+
+enum TaskFilter { all, pending, completed }
