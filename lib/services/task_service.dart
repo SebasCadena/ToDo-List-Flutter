@@ -32,7 +32,7 @@ class DBService {
         // db.execute se usa para ejecutar sentencias SQL
         return db.execute('''
           CREATE TABLE tasks (
-            id TEXT PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
             completed INTEGER NOT NULL DEFAULT 0,
             updated_at TEXT NOT NULL,

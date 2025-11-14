@@ -1,11 +1,11 @@
 class Task {
-  int id;
+  int? id;
   String title;
   int completed;
   String updated_at;
   int deleted;
 
-  Task({required this.id, required this.title, required this.completed, required this.updated_at, required this.deleted});
+  Task({this.id, required this.title, required this.completed, required this.updated_at, required this.deleted});
   /// Convierte un mapa (registro de la base de datos) a una instancia de Task
   factory Task.fromMap(Map<String, dynamic> json) => Task(
     id: json['id'],
@@ -17,7 +17,7 @@ class Task {
 
   /// Convierte la instancia de Categoria a un mapa para ser almacenado en la base de datos
   Map<String, dynamic> toMap() => {
-    'id': id,
+    if (id != null) 'id': id,
     'title': title,
     'completed': completed,
     'updated_at': updated_at,
