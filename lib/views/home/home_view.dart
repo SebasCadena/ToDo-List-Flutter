@@ -12,7 +12,7 @@ class Home extends StatefulWidget {
 
 class _HomeState extends State<Home> {
   late Future<List<Task>> _futureTasks;
-  TaskFilter _currentFilter = TaskFilter.all;
+  TaskFilter _currentFilter = TaskFilter.pending;
 
   //bool _isChecked = false;
 
