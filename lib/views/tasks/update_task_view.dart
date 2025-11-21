@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:to_do_list/models/task_model.dart';
 import 'package:to_do_list/services/task_service.dart';
+import 'dart:convert';
 
 class UpdateTaskView extends StatefulWidget {
   final int id;
@@ -34,7 +35,20 @@ class _UpdateTaskViewState extends State<UpdateTaskView> {
         deleted: _task.deleted,
       );
 
+      // Actualizar en SQLite local
       await DBService.updateTask(actualizada);
+      
+      // Encolar operación para sincronizar
+      await DBService.enqueueOperation(
+        entity: 'task',
+        entityId: _task.id.toString(),
+        operation: 'UPDATE',
+        payload: json.encode({
+          'title': _tituloController.text,
+          'completed': _task.completed,
+        }),
+      );
+      
       if (context.mounted) context.pop();
     }
   }

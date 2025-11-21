@@ -1,7 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:to_do_list/models/task_model.dart';
 import 'package:to_do_list/services/task_service.dart';
+import 'package:to_do_list/providers/sync_provider.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -59,7 +62,20 @@ class _HomeState extends State<Home> {
       deleted: task.deleted,
     );
 
+    // Actualizar en SQLite local
     await DBService.updateTask(updatedTask);
+    
+    // Encolar operación para sincronizar
+    await DBService.enqueueOperation(
+      entity: 'task',
+      entityId: task.id.toString(),
+      operation: 'UPDATE',
+      payload: json.encode({
+        'title': task.title,
+        'completed': updatedTask.completed,
+      }),
+    );
+    
     loadTasks(); // Recarga la lista actualizada
   }
 
@@ -72,7 +88,17 @@ class _HomeState extends State<Home> {
       deleted: 1,
     );
 
+    // Actualizar en SQLite local
     await DBService.updateTask(updatedTask);
+    
+    // Encolar operación DELETE para sincronizar
+    await DBService.enqueueOperation(
+      entity: 'task',
+      entityId: task.id.toString(),
+      operation: 'DELETE',
+      payload: json.encode({'id': task.id}),
+    );
+    
     loadTasks(); // Recarga la lista actualizada
   }
 
@@ -81,13 +107,66 @@ class _HomeState extends State<Home> {
     loadTasks();
   }
 
+  // Sincronización manual usando Provider
+  Future<void> _manualSync() async {
+    final syncProvider = context.read<SyncProvider>();
+    await syncProvider.syncNow();
+    loadTasks(); // Recargar lista después de sincronizar
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
-        title: const Text('To Do List'),
-        actions: [IconButton(onPressed: goToAdd, icon: const Icon(Icons.add))],
+        title: Row(
+          children: [
+            const Text('To Do List'),
+            const SizedBox(width: 10),
+            // Indicador de estado de sincronización
+            Consumer<SyncProvider>(
+              builder: (context, syncProvider, _) {
+                if (syncProvider.status == SyncStatus.syncing) {
+                  return const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  );
+                } else if (syncProvider.status == SyncStatus.success) {
+                  return const Icon(Icons.check_circle, color: Colors.greenAccent, size: 20);
+                } else if (syncProvider.status == SyncStatus.error) {
+                  return const Icon(Icons.error, color: Colors.redAccent, size: 20);
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ],
+        ),
+        actions: [
+          // Botón de sincronización manual
+          Consumer<SyncProvider>(
+            builder: (context, syncProvider, _) {
+              return IconButton(
+                onPressed: syncProvider.isSyncing ? null : _manualSync,
+                icon: syncProvider.isSyncing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Icon(Icons.sync),
+                tooltip: 'Sincronizar con servidor',
+              );
+            },
+          ),
+          IconButton(onPressed: goToAdd, icon: const Icon(Icons.add)),
+        ],
         leading: IconButton(
           icon: const Icon(Icons.delete),
           onPressed: () {
@@ -95,14 +174,41 @@ class _HomeState extends State<Home> {
           },
         ),
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Column(
-            children: [
-              const SizedBox(height: 10),
-              const Text("Tus Tareas", style: TextStyle(fontSize: 20)),
-              const SizedBox(height: 10),
+      body: Consumer<SyncProvider>(
+        builder: (context, syncProvider, child) {
+          // Mostrar SnackBar cuando cambia el estado de sincronización
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (syncProvider.status == SyncStatus.success && syncProvider.message.isNotEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(syncProvider.message),
+                  backgroundColor: Colors.green,
+                  duration: const Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            } else if (syncProvider.status == SyncStatus.error && syncProvider.message.isNotEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(syncProvider.message),
+                  backgroundColor: Colors.orange,
+                  duration: const Duration(seconds: 3),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          });
+
+          return child!;
+        },
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              children: [
+                const SizedBox(height: 10),
+                const Text("Tus Tareas", style: TextStyle(fontSize: 20)),
+                const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
@@ -202,9 +308,10 @@ class _HomeState extends State<Home> {
               ),
             ],
           ),
-        ),
-      ),
-    );
+        ), // Cierra Padding
+      ), // Cierra Center
+      ), // Cierra Consumer
+    ); // Cierra Scaffold
   }
 }
 
