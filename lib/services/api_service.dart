@@ -4,17 +4,23 @@ import '../models/task_model.dart';
 
 /// Servicio simple para comunicarse con la API REST del backend
 class ApiService {
-  // URL base - usar 10.0.2.2 para emulador Android, localhost para web/desktop
-  static const String baseUrl = 'http://10.0.2.2:8000';
+  // URL base - Servidor ngrok en producción
+  static const String baseUrl = 'https://f77116f8ec5b.ngrok-free.app';
   
   /// GET /tasks - Obtener todas las tareas activas
   static Future<List<Task>> getTasks() async {
     try {
+      print('🔄 Iniciando petición GET /tasks...');
       final response = await http.get(
         Uri.parse('$baseUrl/tasks?deleted=0'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 10));
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+          'User-Agent': 'ToDoApp/1.0',
+        },
+      ).timeout(const Duration(seconds: 30));
 
+      print('✅ Respuesta recibida: ${response.statusCode}');
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         return data.map((json) => Task.fromApiJson(json)).toList();
@@ -22,7 +28,7 @@ class ApiService {
         throw Exception('Error al obtener tareas: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error en getTasks: $e');
+      print('❌ Error en getTasks: $e');
       rethrow;
     }
   }
@@ -32,8 +38,12 @@ class ApiService {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/tasks/deleted'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 10));
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+          'User-Agent': 'ToDoApp/1.0',
+        },
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -52,12 +62,16 @@ class ApiService {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/tasks'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+          'User-Agent': 'ToDoApp/1.0',
+        },
         body: json.encode({
           'title': title,
           'completed': false,
         }),
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 201) {
         final data = json.decode(response.body);
@@ -76,12 +90,16 @@ class ApiService {
     try {
       final response = await http.put(
         Uri.parse('$baseUrl/tasks/$id'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+          'User-Agent': 'ToDoApp/1.0',
+        },
         body: json.encode({
           'title': title,
           'completed': completed,
         }),
-      ).timeout(const Duration(seconds: 10));
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -100,8 +118,12 @@ class ApiService {
     try {
       final response = await http.delete(
         Uri.parse('$baseUrl/tasks/$id'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 10));
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+          'User-Agent': 'ToDoApp/1.0',
+        },
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode != 204) {
         throw Exception('Error al eliminar tarea: ${response.statusCode}');
@@ -117,8 +139,12 @@ class ApiService {
     try {
       final response = await http.put(
         Uri.parse('$baseUrl/tasks/$id/restore'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 10));
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true',
+          'User-Agent': 'ToDoApp/1.0',
+        },
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
