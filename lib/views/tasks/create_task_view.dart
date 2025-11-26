@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:to_do_list/models/task_model.dart';
 import 'package:to_do_list/services/task_service.dart';
+import 'dart:convert';
 
 class CreateTaskView extends StatefulWidget {
   const CreateTaskView({super.key});
@@ -26,7 +27,20 @@ class _CreateTaskViewState extends State<CreateTaskView> {
         deleted: 0,
       );
 
-      await DBService.insertTask(nuevaTarea);
+      // Guardar en SQLite local
+      final localId = await DBService.insertTask(nuevaTarea);
+      
+      // Encolar operación para sincronizar con el servidor
+      await DBService.enqueueOperation(
+        entity: 'task',
+        entityId: localId.toString(),
+        operation: 'CREATE',
+        payload: json.encode({
+          'title': _tituloController.text,
+          'completed': 0,
+        }),
+      );
+      
       if (!mounted) return;
       context.pop(); // Volver a la lista
     }

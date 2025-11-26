@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:to_do_list/models/task_model.dart';
 import 'package:to_do_list/services/task_service.dart';
+import 'dart:convert';
 
 class DeletedTasksView extends StatefulWidget {
   const DeletedTasksView({super.key});
@@ -34,7 +35,17 @@ class _DeletedTasksViewState extends State<DeletedTasksView> {
       deleted: 0,
     );
 
+    // Actualizar en SQLite local
     await DBService.updateTask(updatedTask);
+    
+    // Encolar operación RESTORE para sincronizar
+    await DBService.enqueueOperation(
+      entity: 'task',
+      entityId: task.id.toString(),
+      operation: 'RESTORE',
+      payload: json.encode({'id': task.id}),
+    );
+    
     loadTasks(); // Recarga la lista actualizada
   }
 
@@ -51,12 +62,101 @@ class _DeletedTasksViewState extends State<DeletedTasksView> {
     loadTasks(); // Recarga la lista actualizada
   }
 
+  /// Eliminar PERMANENTEMENTE una tarea de SQLite
+  Future<void> _deletePermanently(Task task) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar permanentemente'),
+        content: Text('¿Estás seguro de eliminar "${task.title}" permanentemente?\n\nEsto la eliminará de:\n• Base de datos local (SQLite)\n• Servidor (cuando sincronice)'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      // Encolar operación DELETE para sincronizar con el servidor
+      await DBService.enqueueOperation(
+        entity: 'task',
+        entityId: task.id.toString(),
+        operation: 'DELETE',
+        payload: json.encode({'id': task.id}),
+      );
+      
+      // Eliminar de SQLite local
+      await DBService.deletePermanently(task.id!);
+      
+      loadTasks();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Tarea eliminada permanentemente (se sincronizará)'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Limpiar TODAS las tareas de SQLite
+  Future<void> _clearAllData() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Limpiar base de datos'),
+        content: const Text('¿Eliminar TODAS las tareas de SQLite? Esto incluye las activas, eliminadas y la cola de sincronización. Útil para empezar de cero.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('LIMPIAR TODO'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await DBService.deleteAllTasks();
+      loadTasks();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Base de datos limpiada completamente'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.primary,
         title: const Text('Deleted Tasks'),
+        actions: [
+          // Botón para limpiar toda la base de datos
+          IconButton(
+            icon: const Icon(Icons.delete_forever),
+            tooltip: 'Limpiar toda la BD',
+            onPressed: _clearAllData,
+          ),
+        ],
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
@@ -105,7 +205,7 @@ class _DeletedTasksViewState extends State<DeletedTasksView> {
                                       _toggleTaskCompletion(task);
                                     },
                                   ),
-                                  SizedBox(width: 20),
+                                  const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
                                       task.title,
@@ -116,10 +216,26 @@ class _DeletedTasksViewState extends State<DeletedTasksView> {
                                       ),
                                     ),
                                   ),
+                                  // Botón para restaurar
                                   IconButton(
                                     onPressed: () => _toggleTaskRestored(task), 
-                                    icon: Icon(Icons.add_box_rounded, color: Theme.of(context).colorScheme.primary, size: 30,),
-                                    )
+                                    icon: Icon(
+                                      Icons.restore_from_trash,
+                                      color: Colors.green,
+                                      size: 26,
+                                    ),
+                                    tooltip: 'Restaurar',
+                                  ),
+                                  // Botón para eliminar permanentemente
+                                  IconButton(
+                                    onPressed: () => _deletePermanently(task), 
+                                    icon: const Icon(
+                                      Icons.delete_forever,
+                                      color: Colors.red,
+                                      size: 26,
+                                    ),
+                                    tooltip: 'Eliminar permanentemente',
+                                  ),
                                 ],
                               ),
                             ),
